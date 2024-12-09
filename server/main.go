@@ -6,6 +6,8 @@ import (
  uploadpb "github.com/GoGrpcVideo/proto"
  "github.com/GoGrpcVideo/pkg/app"
  "google.golang.org/grpc"
+ "google.golang.org/grpc/credentials"
+ "crypto/tls"
  "log"
  //"net"
  "bytes"
@@ -107,13 +109,24 @@ func main() {
         if err != nil {
                 log.Fatal(err)
         }
-	/*lis, err := net.Listen("tcp", ":50051")
-	if err != nil {
-		fmt.Println("failed to listen on port 50051: %v", err)
-		return
-	}
-	fmt.Println("Listening on :50051") */
-	g := grpc.NewServer()
+	serverCert, err := tls.LoadX509KeyPair("./cert/server-cert.pem", "./cert/server-key.pem")
+        if err != nil {
+                log.Fatalf("Failed to load server certificate: %v", err)
+        }
+
+        // Create a TLS configuration
+        tlsConfig := &tls.Config{
+                Certificates: []tls.Certificate{serverCert},
+                //ClientAuth:   tls.RequireAndVerifyClientCert, // Optional: require client certificates
+		ClientAuth:   tls.NoClientCert,
+        }
+
+        // Create a gRPC server with TLS credentials
+        creds := credentials.NewTLS(tlsConfig)
+
+	//fmt.Println("Listening on :50051") 
+	//g := grpc.NewServer()
+	g := grpc.NewServer(grpc.Creds(creds))
 	uploadpb.RegisterFileServiceServer(g, &FileServiceServer{})
 	if err := g.Serve(a.Listener); err != nil {
 		fmt.Println("Serve error")

@@ -13,6 +13,7 @@ import (
 func newListener(cfg *ServerConfig) (net.Listener, error) {
         addr := fmt.Sprintf("%s:%d", cfg.Host, cfg.Port)
         ln, err := net.Listen("tcp", addr)
+	//ln, err := net.Listen("tcp", ":50051")
         if err != nil {
                 return nil, err
         }
