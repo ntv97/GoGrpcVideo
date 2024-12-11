@@ -11,10 +11,6 @@ import (
 
 	uploadpb "github.com/GoGrpcVideo/proto"
 	"google.golang.org/grpc"
-	"crypto/tls"
-        "crypto/x509"
-        "google.golang.org/grpc/credentials"
-        "io/ioutil"
 )
 
 type ClientService struct {
@@ -34,22 +30,7 @@ func New(addr string, filePath string, batchSize int) *ClientService {
 
 func (s *ClientService) SendFile() error {
 	log.Println(s.addr, s.filePath)
-	caCert, err := ioutil.ReadFile("./cert/ca-cert.pem")
-        if err != nil {
-                log.Fatalf("Failed to read CA certificate: %v", err)
-        }
-        caCertPool := x509.NewCertPool()
-        caCertPool.AppendCertsFromPEM(caCert)
-
-        // Create a TLS configuration
-        tlsConfig := &tls.Config{
-                RootCAs: caCertPool,
-        }
-
-        // Create a gRPC connection with TLS credentials
-        creds := credentials.NewTLS(tlsConfig)
-	//conn, err := grpc.Dial(s.addr, grpc.WithInsecure())
-	conn, err := grpc.Dial(s.addr, grpc.WithTransportCredentials(creds))
+	conn, err := grpc.Dial(s.addr, grpc.WithInsecure())
 	if err != nil {
 		return err
 	}
@@ -121,7 +102,7 @@ func (s *ClientService) upload(ctx context.Context, cancel context.CancelFunc) e
 
 func main() {
 	fmt.Println("Client started")
-	serverAddr := "0.0.0.0:38457"
+	serverAddr := "localhost:38457"
 	filePath := "./dogs.mp4"
 	batchSize := 1024*1024
 	clientService := New(serverAddr, filePath, batchSize)

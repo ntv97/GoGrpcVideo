@@ -11,7 +11,7 @@ import (
 
         "github.com/gorilla/mux"
         "github.com/GoGrpcVideo/pkg/media"
-	"crypto/tls"
+
 )
 
 // App represents main application.
@@ -58,17 +58,6 @@ func NewApp(cfg *Config) (*App, error) {
 
 // Run imports the library and starts server.
 func (a *App) Run() error {
-	cfg := &tls.Config{
-		MinVersion:               tls.VersionTLS12,
-		CurvePreferences:         []tls.CurveID{tls.CurveP521, tls.CurveP384, tls.CurveP256},
-		PreferServerCipherSuites: true,
-		CipherSuites: []uint16{
-			tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA,
-			tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-			tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-		},
-	}
         for _, pc := range a.Config.Library {
                 p := &media.Path{
                         Path:   pc.Path,
@@ -82,14 +71,8 @@ func (a *App) Run() error {
                         return err
                 }
         }
-	srv := &http.Server{
-		Addr:         "0.0.0.0:38458",
-		Handler:      a.Router,
-		TLSConfig:    cfg,
-		TLSNextProto: make(map[string]func(*http.Server, *tls.Conn, http.Handler), 0),
-	}
-	return srv.ListenAndServeTLS("./cert/server-cert.pem", "./cert/server-key.pem")
         //return http.Serve(a.Listener, a.Router)
+	return nil
 }
 
 // HTTP handler for /

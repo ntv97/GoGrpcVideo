@@ -6,14 +6,15 @@ import (
  uploadpb "github.com/GoGrpcVideo/proto"
  "github.com/GoGrpcVideo/pkg/app"
  "google.golang.org/grpc"
- "google.golang.org/grpc/credentials"
- "crypto/tls"
  "log"
- //"net"
+ "net"
+ "net/http"
  "bytes"
+ "strings"
  "os"
  "path/filepath"
  "io"
+ "github.com/soheilhy/cmux"
 )
 
 type FileServiceServer struct {
@@ -93,6 +94,32 @@ func (g *FileServiceServer) Upload(stream uploadpb.FileService_UploadServer) err
 	return stream.SendAndClose(&uploadpb.FileUploadResponse{FileName: fileName, Size: fileSize})
 }
 
+// GRPC Server initialisation
+func serveGRPC(l net.Listener) {
+        g := grpc.NewServer()
+        uploadpb.RegisterFileServiceServer(g, &FileServiceServer{})
+        if err := g.Serve(l); err != nil {
+                fmt.Println("Serve error")
+                return
+        }
+
+}
+
+func serveHTTP(l net.Listener, a *app.App) error {
+	//h := gin.Default()
+	//router.Router(h)
+	s := &http.Server{
+		Handler: a.Router,
+	}
+	if err := s.Serve(l); err != cmux.ErrListenerClosed {
+		log.Fatalf("error serving HTTP : %+v", err)
+		return err
+	}
+	return nil
+}
+
+
+
 func main() {
 	cfg := app.DefaultConfig()
 	err := cfg.ReadFile("config.json")
@@ -109,28 +136,13 @@ func main() {
         if err != nil {
                 log.Fatal(err)
         }
-	serverCert, err := tls.LoadX509KeyPair("./cert/server-cert.pem", "./cert/server-key.pem")
-        if err != nil {
-                log.Fatalf("Failed to load server certificate: %v", err)
+	m := cmux.New(a.Listener)
+        httpListener := m.Match(cmux.HTTP1Fast())
+        grpclistener := m.Match(cmux.Any())
+        go serveGRPC(grpclistener)
+        go serveHTTP(httpListener, a)
+        if err := m.Serve(); !strings.Contains(err.Error(), "use of closed network connection") {
+                log.Fatalf("MUX ERR : %+v", err)
         }
-
-        // Create a TLS configuration
-        tlsConfig := &tls.Config{
-                Certificates: []tls.Certificate{serverCert},
-                //ClientAuth:   tls.RequireAndVerifyClientCert, // Optional: require client certificates
-		ClientAuth:   tls.NoClientCert,
-        }
-
-        // Create a gRPC server with TLS credentials
-        creds := credentials.NewTLS(tlsConfig)
-
-	//fmt.Println("Listening on :50051") 
-	//g := grpc.NewServer()
-	g := grpc.NewServer(grpc.Creds(creds))
-	uploadpb.RegisterFileServiceServer(g, &FileServiceServer{})
-	if err := g.Serve(a.Listener); err != nil {
-		fmt.Println("Serve error")
-		return
-	}
 
 }
