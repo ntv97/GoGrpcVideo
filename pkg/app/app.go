@@ -21,7 +21,10 @@ type App struct {
         Templates *template.Template
         Listener  net.Listener
         Router    *mux.Router
+	Queue	  []string
 }
+
+var APP *App
 
 // NewApp returns a new instance of App from Config.
 func NewApp(cfg *Config) (*App, error) {
@@ -42,6 +45,7 @@ func NewApp(cfg *Config) (*App, error) {
         // Setup Templates
         a.Templates = template.Must(template.ParseGlob("templates/*"))
         // Setup Router
+	a.Queue = make([]string, 0)
         r := mux.NewRouter().StrictSlash(true)
         r.HandleFunc("/", a.indexHandler).Methods("GET")
         r.HandleFunc("/v/{id}.mp4", a.videoHandler).Methods("GET")
@@ -58,7 +62,7 @@ func NewApp(cfg *Config) (*App, error) {
 
 // Run imports the library and starts server.
 func (a *App) Run() error {
-        for _, pc := range a.Config.Library {
+        /*for _, pc := range a.Config.Library {
                 p := &media.Path{
                         Path:   pc.Path,
                 }
@@ -70,7 +74,13 @@ func (a *App) Run() error {
                 if err != nil {
                         return err
                 }
-        }
+        }*/
+	for {
+		if (len(a.Queue) > 0) {
+			a.Library.Add(a.Queue[0])	
+			a.Queue = a.Queue[1:]
+		}
+	}
         //return http.Serve(a.Listener, a.Router)
 	return nil
 }
@@ -92,6 +102,7 @@ func (a *App) indexHandler(w http.ResponseWriter, r *http.Request) {
                         Playlist: a.Library.Playlist(),
                 })
         }
+	log.Printf("end of indexHandler")
 }
 
 // HTTP handler for /v/id

@@ -63,13 +63,23 @@ func (lib *Library) Import(p *Path) error {
 func (lib *Library) Add(fp string) error {
         lib.mu.Lock()
         defer lib.mu.Unlock()
+	fmt.Println("file path: ", fp)
         fp = filepath.ToSlash(fp)
+	fmt.Println("fp: ", fp)
         d := path.Dir(fp)
-        p, ok := lib.Paths[d]
+	fmt.Println("d: ", d)
+        _, ok := lib.Paths[d]
         if !ok {
-                return errors.New("media: path not found")
+		fmt.Println("media: path not found, creating new")
+		lib.Paths[d] = &Path{
+                        Path:   d,
+                }
+
+                //return errors.New("media: path not found")
         }
+	p, _ := lib.Paths[d]
         n := path.Base(fp)
+	fmt.Printf("p: %s, n: %s\n", p, n)
         v, err := ParseVideo(p, n)
         if err != nil {
                 return err

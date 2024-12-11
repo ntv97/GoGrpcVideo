@@ -5,6 +5,7 @@ import (
  //"context"
  uploadpb "github.com/GoGrpcVideo/proto"
  "github.com/GoGrpcVideo/pkg/app"
+ //"github.com/GoGrpcVideo/pkg/media"
  "google.golang.org/grpc"
  "log"
  "net"
@@ -90,8 +91,19 @@ func (g *FileServiceServer) Upload(stream uploadpb.FileService_UploadServer) err
 		}
 	}
 
+	fmt.Println("grpc file path: ", file.FilePath)
+	//app.APP.Queue = append(app.APP.Queue, file.FilePath)
+	if err := app.APP.Library.Add(file.FilePath); err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("after Add, sizeof playlist videos: ", len(app.APP.Library.Videos))
 	fileName := filepath.Base(file.FilePath)
-	return stream.SendAndClose(&uploadpb.FileUploadResponse{FileName: fileName, Size: fileSize})
+	if err := stream.SendAndClose(&uploadpb.FileUploadResponse{FileName: fileName, Size: fileSize}); err != nil {
+		return err
+	}
+	//go app.APP.Library.Add(file.FilePath)
+	//return stream.SendAndClose(&uploadpb.FileUploadResponse{FileName: fileName, Size: fileSize})
+	return nil
 }
 
 // GRPC Server initialisation
@@ -106,8 +118,6 @@ func serveGRPC(l net.Listener) {
 }
 
 func serveHTTP(l net.Listener, a *app.App) error {
-	//h := gin.Default()
-	//router.Router(h)
 	s := &http.Server{
 		Handler: a.Router,
 	}
@@ -132,10 +142,11 @@ func main() {
         }
         addr := fmt.Sprintf("%s:%d", cfg.Server.Host, cfg.Server.Port)
         log.Printf("Local server: http://%s", addr)
-        err = a.Run()
+        //err = a.Run()
         if err != nil {
                 log.Fatal(err)
         }
+	app.APP = a
 	m := cmux.New(a.Listener)
         httpListener := m.Match(cmux.HTTP1Fast())
         grpclistener := m.Match(cmux.Any())
@@ -144,5 +155,4 @@ func main() {
         if err := m.Serve(); !strings.Contains(err.Error(), "use of closed network connection") {
                 log.Fatalf("MUX ERR : %+v", err)
         }
-
 }
